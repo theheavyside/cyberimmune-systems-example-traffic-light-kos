@@ -30,22 +30,21 @@ request src=traffic_light.ControlSystem dst=kl.core.Core {
     grant ()
 }
 
-
 request src=traffic_light.ControlSystem 
     dst=traffic_light.LightsGPIO 
     endpoint=lightsGpio.mode 
     method=FMode {
-        grant()
+        /* white list of states */
+        assert(bool.any [
+            message.value == 0x101,
+            message.value == 0x103,
+            message.value == 0x104,
+            message.value == 0x102,
+            message.value == 0x301,
+            message.value == 0x401,
+            message.value == 0x201,
+            message.value == 0xA0A])        
 }
-
-/*
-request src=traffic_light.ControlSystem 
-    dst=traffic_light.LightsGPIO 
-    endpoint=lightsGpio.mode 
-    method=FMode {
-        assert (message.value != 0x404)        
-}
-*/
 
 request src=Einit {
     grant ()
