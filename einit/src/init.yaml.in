@@ -12,3 +12,9 @@ entities:
 - name: traffic_light.LightsGPIO
 @INIT_LightsGPIO_ENTITY_CONNECTIONS@
 
+# The `Diagnostics` entity can communicate with outer world.
+- name: traffic_light.Diagnostics
+  connections:
+  - target: traffic_light.LightsGPIO
+    id: diagnostics_connection
+@INIT_Diagnostics_ENTITY_CONNECTIONS@
