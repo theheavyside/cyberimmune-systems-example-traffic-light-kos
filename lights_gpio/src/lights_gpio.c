@@ -9,6 +9,7 @@
 
 /* EDL description of the LightsGPIO entity. */
 #include <traffic_light/LightsGPIO.edl.h>
+#include <traffic_light/IStatus.idl.h>
 
 #include <assert.h>
 
@@ -66,33 +67,18 @@ int main(void)
     Handle handle = ServiceLocatorRegister("lights_gpio_connection", NULL, 0, &iid);
     assert(handle != INVALID_HANDLE);
 
-    /* Initialize transport to control system. */
     NkKosTransport_Init(&transport, handle, NK_NULL, 0);
 
-    /**
-     * Prepare the structures of the request to the lights gpio entity: constant
-     * part and arena. Because none of the methods of the lights gpio entity has
-     * sequence type arguments, only constant parts of the
-     * request and response are used. Arenas are effectively unused. However,
-     * valid arenas of the request and response must be passed to
-     * lights gpio transport methods (nk_transport_recv, nk_transport_reply) and
-     * to the lights gpio method.
-     */
-    traffic_light_LightsGPIO_entity_req req;
-    char req_buffer[traffic_light_LightsGPIO_entity_req_arena_size];
+    traffic_light_LightsGPIO_entity_req gpioRequest;
+    char gpioReqBuffer[traffic_light_LightsGPIO_entity_req_arena_size];
     struct nk_arena req_arena = NK_ARENA_INITIALIZER(req_buffer,
                                         req_buffer + sizeof(req_buffer));
 
-    /* Prepare response structures: constant part and arena. */
-    traffic_light_LightsGPIO_entity_res res;
+    traffic_light_LightsGPIO_entity_res gpioResult;
     char res_buffer[traffic_light_LightsGPIO_entity_res_arena_size];
     struct nk_arena res_arena = NK_ARENA_INITIALIZER(res_buffer,
                                         res_buffer + sizeof(res_buffer));
 
-    /**
-     * Initialize mode component dispatcher. 3 is the value of the step,
-     * which is the number by which the input value is increased.
-     */
     traffic_light_CMode_component component;
     traffic_light_CMode_component_init(&component, CreateIModeImpl(0x1000000));
 
@@ -106,7 +92,7 @@ int main(void)
     do
     {
         /* Flush request/response buffers. */
-        nk_req_reset(&req);
+        nk_req_reset(&gpioRequest);
         nk_arena_reset(&req_arena);
         nk_arena_reset(&res_arena);
 
@@ -120,8 +106,8 @@ int main(void)
              * Handle received request by calling implementation Mode_impl
              * of the requested Mode interface method.
              */
-            traffic_light_LightsGPIO_entity_dispatch(&entity, &req.base_, &req_arena,
-                                        &res.base_, &res_arena);
+            traffic_light_LightsGPIO_entity_dispatch(&entity, &gpioRequest.base_, &req_arena,
+                                        &gpioResult.base_, &res_arena);
         }
 
         /* Send response. */

@@ -4,5 +4,5 @@ package traffic_light.IStatus
 
 interface {
     /* IStatus interface method */
-    SMode(out UInt32 status);
+    GetStatus(out UInt32 status);
 }

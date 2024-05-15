@@ -1,6 +1,6 @@
 component traffic_light.CStatus
 
 endpoints {
-    /* Declaration of a named implementation of the "Mode" interface. */
+    /* Declaration of a named implementation of the "Status" interface. */
     mode : traffic_light.IStatus
 }
