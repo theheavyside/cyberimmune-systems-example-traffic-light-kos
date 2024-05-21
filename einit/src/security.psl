@@ -1,27 +1,57 @@
-/* Security configuration of the "traffic light" example. */
-/* nk.basic._ is required for comparison operations support in policies, like != below */
 use nk.basic._
 
-/* Definition of the execute interface. */
 execute: kl.core.Execute
 
-/* Import the file with the declaration of basic security policy aliases. */
 use nk.base._
 
-/* Declaration of entities. */
 use EDL Einit
+use EDL kl.VfsNet
 use EDL kl.core.Core
+use EDL kl.drivers.BSP
+use EDL kl.drivers.GPIO
 
 use EDL traffic_light.ControlSystem
 use EDL traffic_light.LightsGPIO
 use EDL traffic_light.Diagnostics
 
-/* Execution of entities allowed. */
+error {
+    grant ()
+}
+
+execute src = Einit, dst = kl.drivers.BSP
+{
+    grant()
+}
+
+request src = kl.drivers.BSP, dst = kl.core.Core
+{
+    grant()
+}
+
+response src = kl.core.Core, dst = kl.drivers.BSP
+{
+    grant()
+}
+
+execute src = Einit, dst = kl.drivers.GPIO
+{
+    grant()
+}
+
+request src = kl.drivers.GPIO, dst = kl.core.Core
+{
+    grant()
+}
+
+response src = kl.core.Core, dst = kl.drivers.GPIO
+{
+    grant()
+}
+
 execute {
     grant ()
 }
 
-/* Request messages allowed. */
 request src=traffic_light.ControlSystem {
     grant ()
 }
@@ -50,6 +80,13 @@ request src=traffic_light.ControlSystem
             message.value == 0xA0A])        
 }
 
+request src=traffic_light.Diagnostics
+    dst=traffic_light.LightsGPIO
+    endpoint=diagStatus.status
+    method=GetStatus {
+        grant()
+    }
+
 request src=Einit {
     grant ()
 }
@@ -58,30 +95,43 @@ request src=kl.core.Core {
     grant ()
 }
 
+execute src=Einit, dst=kl.VfsNet
+{
+    grant()
+}
+
+request src=kl.VfsNet, dst=kl.core.Core
+{
+    grant()
+}
+
+response src=kl.core.Core, dst=kl.VfsNet
+{
+    grant()
+}
+
+request src=traffic_light.Diagnostics, dst=kl.VfsNet
+{
+    grant()
+}
+
+response src=kl.VfsNet, dst=traffic_light.Diagnostics
+{
+    grant()
+}
+
 request src=traffic_light.LightsGPIO dst=kl.core.Core {
     grant ()
 }
 
-
-/* Response messages allowed. */
 response {
     grant ()
 }
-
-/*
-response src=traffic_light.LightsGPIO 
-    dst=traffic_light.ControlSystem 
-    endpoint=lightsGpio.mode 
-    method=FMode {
-        assert (message.result < 0x1000404)
-}
-*/
 
 error {
     grant ()
 }
 
-/* Calls to the security interface are ignored. */
 security {
     grant ()
 }

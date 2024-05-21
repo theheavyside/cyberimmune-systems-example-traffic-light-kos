@@ -18,6 +18,9 @@
 /* Control system entity entry point. */
 int main(int argc, const char *argv[])
 {
+    (void)argv[0];
+    (void)argc;
+
     NkKosTransport transport;
     struct traffic_light_IMode_proxy proxy;
     int i;
@@ -90,7 +93,6 @@ int main(int argc, const char *argv[])
              * to resend to lights gpio in next iteration.
              */
             req.value = res.result;
-
         }
         else
             fprintf(stderr, "Failed to call traffic_light.Mode.Mode()\n");

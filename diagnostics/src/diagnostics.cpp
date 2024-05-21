@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <iostream>
 
+#include "tcp_server.hpp"
+
 #include <coresrv/nk/transport-kos.h>
 #include <coresrv/sl/sl_api.h>
 #include <stdlib.h>
@@ -16,8 +18,9 @@
 namespace{
 constexpr const char* entityName{"Diagnostics"};
 constexpr const char* connectionName{"diagnostics_connection"};
-constexpr const char* getStatusMethodId{"traffic_light.LightsGPIO.GetStatus"};
-constexpr const int diagPollPeriodS{1};
+constexpr const char* getStatusMethodId{"diagStatus.status"};
+constexpr const int diagPollPeriodSeconds{1};
+constexpr const int tcpServerPort{7777};
 }
 
 static uint32_t currentStatus{0x00};
@@ -25,7 +28,7 @@ static uint32_t currentStatus{0x00};
 /* Diagnostics entry point. */
 int main(int argc, const char *argv[])
 {
-    std::cerr << "Hello, I'm " << entityName << "\n";
+    std::cerr << "Hello, I'm " << entityName << ENDL;
 
     Handle handleDiag = ServiceLocatorConnect(connectionName);
     if (handleDiag == INVALID_HANDLE)
@@ -40,7 +43,7 @@ int main(int argc, const char *argv[])
     nk_iid_t riid = ServiceLocatorGetRiid(handleDiag, getStatusMethodId);
     if (riid == INVALID_RIID)
     {
-        std::cerr << "[" << entityName << "] " << "Error: can`t get runtime implementation ID (RIID) of "<< getStatusMethodId << "\n";
+        std::cerr << "[" << entityName << "] " << "Error: can`t get runtime implementation ID (RIID) of "<< getStatusMethodId << ENDL;
         return EXIT_FAILURE;
     }
     
@@ -50,18 +53,31 @@ int main(int argc, const char *argv[])
     traffic_light_IStatus_GetStatus_req request;
     traffic_light_IStatus_GetStatus_res result;
 
-    while (true)
+    try {
+        TcpServer server{tcpServerPort};
+
+        while (true)
+        {
+            sleep(diagPollPeriodSeconds);
+            std::cerr << "[" << entityName << "] " << "Performing diag IPC request\n";
+
+            if (traffic_light_IStatus_GetStatus(&statusProxy.base, &request, NULL, &result, NULL) == rcOk)
+            {
+                currentStatus = result.status;
+            }
+            else
+            {
+                std::cerr << "[" << entityName << "] " << "Failed to call" << getStatusMethodId << ENDL;
+            }
+            
+            server.Loop(currentStatus);
+        }
+    }
+    catch(const std::exception& e)
     {
-        sleep(diagPollPeriodS);
-        std::cerr << "[" << entityName << "] " << "Performing diag IPC request\n";
-        if (traffic_light_IStatus_GetStatus(&statusProxy.base, &request, nullptr, &result, nullptr) != rcOk)
-        {
-            // currentStatus = result.result;
-        }
-        else
-        {
-            std::cerr << "[" << entityName << "] " << "Failed to call" << getStatusMethodId << "\n";
-        }
+        std::cerr << "Caught error: " << e.what() << ENDL;
+        std::cerr << "Exiting " << entityName << " entity" << ENDL;
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
