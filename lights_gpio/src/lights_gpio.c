@@ -12,6 +12,9 @@
 #include <traffic_light/IStatus.idl.h>
 
 #include <assert.h>
+#include <pthread.h>
+
+void *handle_transport(void *args);
 
 /* Type of interface implementing object. */
 typedef struct IModeImpl {
@@ -91,7 +94,50 @@ static struct traffic_light_IMode *CreateIModeImpl(rtl_uint32_t step)
     return &impl.base;
 }
 
-/* Lights GPIO entry point. */
+typedef struct {
+    NkKosTransport *transport;
+    traffic_light_LightsGPIO_entity *entity;
+    traffic_light_LightsGPIO_entity_req *gpioRequest;
+    struct nk_arena *req_arena;
+    struct nk_arena *res_arena;
+    traffic_light_LightsGPIO_entity_res *gpioResult;
+} ThreadArgs;
+
+void *handle_transport(void *args) {
+    fprintf(stderr, "Starting thread\n");
+    ThreadArgs *threadArgs = (ThreadArgs *)args;
+
+    while (true) {
+        /* Flush request/response buffers. */
+        nk_req_reset(threadArgs->gpioRequest);
+        nk_arena_reset(threadArgs->req_arena);
+        nk_arena_reset(threadArgs->res_arena);
+
+        /* Wait for request to lights gpio entity. */
+        if (nk_transport_recv(&threadArgs->transport->base,
+                              &threadArgs->gpioRequest->base_,
+                              threadArgs->req_arena) != NK_EOK) {
+            fprintf(stderr, "nk_transport_recv error\n");
+        } else {
+            /**
+             * Handle received request by calling implementation Mode_impl
+             * of the requested Mode interface method.
+             */
+            traffic_light_LightsGPIO_entity_dispatch(threadArgs->entity, &threadArgs->gpioRequest->base_, threadArgs->req_arena,
+                                        &threadArgs->gpioResult->base_, threadArgs->res_arena);
+        }
+
+        /* Send response. */
+        if (nk_transport_reply(&threadArgs->transport->base,
+                               &threadArgs->gpioResult->base_,
+                               threadArgs->res_arena) != NK_EOK) {
+            fprintf(stderr, "[mode] nk_transport_reply error\n");
+        }
+    }
+
+    return NULL;
+}
+
 int main(void)
 {
     ServiceId iid;
@@ -130,57 +176,16 @@ int main(void)
 
     fprintf(stderr, "Hello I'm LightsGPIO\n");
 
-    /* Dispatch loop implementation. */
-    do
-    {
-        /* Flush request/response buffers. */
-        nk_req_reset(&gpioRequest);
-        nk_arena_reset(&req_arena);
-        nk_arena_reset(&res_arena);
+    ThreadArgs threadArgs1 = {&transport, &entity, &gpioRequest, &req_arena, &res_arena, &gpioResult};
+    ThreadArgs threadArgs2 = {&transportDiag, &entity, &gpioRequest, &req_arena, &res_arena, &gpioResult};
 
-        /* Wait for request to lights gpio entity. */
-        if (nk_transport_recv(&transport.base,
-                              &gpioRequest.base_,
-                              &req_arena) != NK_EOK) {
-            fprintf(stderr, "[mode] nk_transport_recv error\n");
-        } else {
-            /**
-             * Handle received request by calling implementation Mode_impl
-             * of the requested Mode interface method.
-             */
-            traffic_light_LightsGPIO_entity_dispatch(&entity, &gpioRequest.base_, &req_arena,
-                                        &gpioResult.base_, &res_arena);
-        }
+    pthread_t thread1, thread2;
 
-        /* Wait for request to lights gpio entity. */
-        if (nk_transport_recv(&transportDiag.base,
-                              &gpioRequest.base_,
-                              &req_arena) != NK_EOK) {
-            fprintf(stderr, "[diag] nk_transport_recv error\n");
-        } else {
-            /**
-             * Handle received request by calling implementation Mode_impl
-             * of the requested Mode interface method.
-             */
-            traffic_light_LightsGPIO_entity_dispatch(&entity, &gpioRequest.base_, &req_arena,
-                                        &gpioResult.base_, &res_arena);
-        }
+    pthread_create(&thread1, NULL, handle_transport, &threadArgs1);
+    pthread_create(&thread2, NULL, handle_transport, &threadArgs2);
 
-        /* Send response. */
-        if (nk_transport_reply(&transport.base,
-                               &gpioResult.base_,
-                               &res_arena) != NK_EOK) {
-            fprintf(stderr, "[mode] nk_transport_reply error\n");
-        }
-
-        /* Send diag response. */
-        if (nk_transport_reply(&transportDiag.base,
-                               &gpioResult.base_,
-                               &res_arena) != NK_EOK) {
-            fprintf(stderr, "[diag] nk_transport_reply error\n");
-        }
-    }
-    while (true);
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
 
     return EXIT_SUCCESS;
 }
