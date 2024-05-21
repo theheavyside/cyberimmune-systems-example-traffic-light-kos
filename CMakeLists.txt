@@ -11,6 +11,14 @@ include (platform/nk)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Add package importing components for building audit entity and connecting to it.
+find_package (klog REQUIRED)
+include_directories (${klog_INCLUDE})
+
+# Add package importing `klog_storage_entity`.
+find_package (klog_storage REQUIRED)
+include_directories (${klog_storage_INCLUDE})
+
 # NK targets
 # IMode / CMode
 nk_build_idl_files (traffic_light_mode_idl_files 
@@ -41,6 +49,7 @@ nk_build_edl_files (traffic_light_control_system_edl_files
 nk_build_edl_files (traffic_light_lights_gpio_edl_files 
     CDL_TARGET traffic_light_mode_cdl_files
     NK_MODULE "traffic_light" 
+    DEPENDS traffic_light_status_cdl_files
     EDL "resources/entities/LightsGPIO.edl")
 
 nk_build_edl_files (traffic_light_lights_gpio_edl_files 
@@ -52,6 +61,15 @@ nk_build_edl_files (traffic_light_lights_gpio_edl_files
 nk_build_edl_files (traffic_light_diagnostics_edl_files 
     NK_MODULE "traffic_light" 
     EDL "resources/entities/Diagnostics.edl")
+
+# KLog
+nk_build_edl_files (klog_edl_files 
+    NK_MODULE "traffic_light" 
+    EDL "resources/entities/KlogEntity.edl")
+
+nk_build_edl_files (klog_storage_edl_files 
+    NK_MODULE "traffic_light" 
+    EDL "resources/entities/KlogStorageEntity.edl")
 
 # Add a package for working with the virtual file system.
 find_package (vfs REQUIRED)
@@ -77,4 +95,5 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} \
 add_subdirectory (control_system)
 add_subdirectory (lights_gpio)
 add_subdirectory (diagnostics)
+add_subdirectory (klog_storage)
 add_subdirectory (einit)
