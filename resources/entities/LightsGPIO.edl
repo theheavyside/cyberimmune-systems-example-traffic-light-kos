@@ -2,4 +2,5 @@ entity traffic_light.LightsGPIO
 
 components {
     lightsGpio : traffic_light.CMode
+    diagStatus : traffic_light.CStatus
 }

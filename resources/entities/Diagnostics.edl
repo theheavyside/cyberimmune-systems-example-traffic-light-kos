@@ -1,0 +1,5 @@
+entity traffic_light.Diagnostics
+
+components {
+    status : traffic_light.CStatus
+}

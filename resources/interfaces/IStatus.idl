@@ -1,0 +1,8 @@
+/* Package with an "IStatus" interface declaration. */
+
+package traffic_light.IStatus
+
+interface {
+    /* IStatus interface method */
+    GetStatus(out UInt32 status);
+}

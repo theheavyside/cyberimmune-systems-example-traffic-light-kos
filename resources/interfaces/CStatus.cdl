@@ -1,0 +1,6 @@
+component traffic_light.CStatus
+
+endpoints {
+    /* Declaration of a named implementation of the "Status" interface. */
+    status : traffic_light.IStatus
+}

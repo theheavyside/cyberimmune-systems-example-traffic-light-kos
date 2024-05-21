@@ -5,10 +5,32 @@ entities:
   connections:
   - target: traffic_light.LightsGPIO
     id: lights_gpio_connection
-@INIT_ControlSystem_ENTITY_CONNECTIONS@
+@INIT_ControlSystem_ENTITY_CONNECTIONS+@
 
 
 # The `LightsGPIO` entity can only respond to requests.
 - name: traffic_light.LightsGPIO
-@INIT_LightsGPIO_ENTITY_CONNECTIONS@
+@INIT_LightsGPIO_ENTITY_CONNECTIONS+@
 
+
+# The `Diagnostics` entity can communicate with outer world.
+- name: traffic_light.Diagnostics
+  connections:
+  - target: traffic_light.LightsGPIO
+    id: diagnostics_connection
+  - target: kl.VfsNet
+    id: kl.VfsNet
+  env:
+    VFS_FILESYSTEM_BACKEND: client:kl.VfsNet
+    VFS_NETWORK_BACKEND: client:kl.VfsNet
+@INIT_Diagnostics_ENTITY_CONNECTIONS+@
+
+- name: traffic_light.KlogEntity
+  path: @INIT_KlogEntity_PATH@
+  connections:
+  - target: traffic_light.KlogStorageEntity
+    id: {var: KLOG_STORAGE_SERVER_CONNECTION_ID, include: klog_storage/client.h}
+
+- name: traffic_light.KlogStorageEntity
+
+@INIT_EXTERNAL_ENTITIES@

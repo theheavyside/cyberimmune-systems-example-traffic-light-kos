@@ -9,14 +9,23 @@
 
 /* EDL description of the LightsGPIO entity. */
 #include <traffic_light/LightsGPIO.edl.h>
+#include <traffic_light/IStatus.idl.h>
 
 #include <assert.h>
+#include <pthread.h>
+
+void *handle_transport(void *args);
 
 /* Type of interface implementing object. */
 typedef struct IModeImpl {
     struct traffic_light_IMode base;     /* Base interface of object */
     rtl_uint32_t step;                   /* Extra parameters */
 } IModeImpl;
+
+typedef struct IStatusImpl {
+    struct traffic_light_IStatus base;     /* Base interface of object */
+    rtl_uint32_t status;                   /* Extra parameters */
+} IStatusImpl;
 
 /* Mode method implementation. */
 static nk_err_t FMode_impl(struct traffic_light_IMode *self,
@@ -33,6 +42,35 @@ static nk_err_t FMode_impl(struct traffic_light_IMode *self,
      */
     res->result = req->value + impl->step;
     return NK_EOK;
+}
+
+static nk_err_t GetStatus_impl(struct traffic_light_IStatus *self,
+                          const struct traffic_light_IStatus_GetStatus_req *req,
+                          const struct nk_arena *req_arena,
+                          traffic_light_IStatus_GetStatus_res *res,
+                          struct nk_arena *res_arena)
+{
+    IStatusImpl *impl = (IStatusImpl *)self;
+    
+    // res-> = impl->status;
+    return NK_EOK;
+}
+
+static struct traffic_light_IStatus *CreateIStatusImpl(rtl_uint32_t status)
+{
+    /* Table of implementations of IMode interface methods. */
+    static const struct traffic_light_IStatus_ops ops = {
+        .GetStatus = GetStatus_impl
+    };
+
+    /* Interface implementing object. */
+    static struct IStatusImpl impl = {
+        .base = {&ops}
+    };
+
+    impl.status = status;
+
+    return &impl.base;
 }
 
 /**
@@ -56,82 +94,98 @@ static struct traffic_light_IMode *CreateIModeImpl(rtl_uint32_t step)
     return &impl.base;
 }
 
-/* Lights GPIO entry point. */
-int main(void)
-{
-    NkKosTransport transport;
-    ServiceId iid;
+typedef struct {
+    NkKosTransport *transport;
+    traffic_light_LightsGPIO_entity *entity;
+    traffic_light_LightsGPIO_entity_req *gpioRequest;
+    struct nk_arena *req_arena;
+    struct nk_arena *res_arena;
+    traffic_light_LightsGPIO_entity_res *gpioResult;
+} ThreadArgs;
 
-    /* Get lights gpio IPC handle of "lights_gpio_connection". */
-    Handle handle = ServiceLocatorRegister("lights_gpio_connection", NULL, 0, &iid);
-    assert(handle != INVALID_HANDLE);
+void *handle_transport(void *args) {
+    fprintf(stderr, "Starting thread\n");
+    ThreadArgs *threadArgs = (ThreadArgs *)args;
 
-    /* Initialize transport to control system. */
-    NkKosTransport_Init(&transport, handle, NK_NULL, 0);
-
-    /**
-     * Prepare the structures of the request to the lights gpio entity: constant
-     * part and arena. Because none of the methods of the lights gpio entity has
-     * sequence type arguments, only constant parts of the
-     * request and response are used. Arenas are effectively unused. However,
-     * valid arenas of the request and response must be passed to
-     * lights gpio transport methods (nk_transport_recv, nk_transport_reply) and
-     * to the lights gpio method.
-     */
-    traffic_light_LightsGPIO_entity_req req;
-    char req_buffer[traffic_light_LightsGPIO_entity_req_arena_size];
-    struct nk_arena req_arena = NK_ARENA_INITIALIZER(req_buffer,
-                                        req_buffer + sizeof(req_buffer));
-
-    /* Prepare response structures: constant part and arena. */
-    traffic_light_LightsGPIO_entity_res res;
-    char res_buffer[traffic_light_LightsGPIO_entity_res_arena_size];
-    struct nk_arena res_arena = NK_ARENA_INITIALIZER(res_buffer,
-                                        res_buffer + sizeof(res_buffer));
-
-    /**
-     * Initialize mode component dispatcher. 3 is the value of the step,
-     * which is the number by which the input value is increased.
-     */
-    traffic_light_CMode_component component;
-    traffic_light_CMode_component_init(&component, CreateIModeImpl(0x1000000));
-
-    /* Initialize lights gpio entity dispatcher. */
-    traffic_light_LightsGPIO_entity entity;
-    traffic_light_LightsGPIO_entity_init(&entity, &component);
-
-    fprintf(stderr, "Hello I'm LightsGPIO\n");
-
-    /* Dispatch loop implementation. */
-    do
-    {
+    while (true) {
         /* Flush request/response buffers. */
-        nk_req_reset(&req);
-        nk_arena_reset(&req_arena);
-        nk_arena_reset(&res_arena);
+        nk_req_reset(threadArgs->gpioRequest);
+        nk_arena_reset(threadArgs->req_arena);
+        nk_arena_reset(threadArgs->res_arena);
 
         /* Wait for request to lights gpio entity. */
-        if (nk_transport_recv(&transport.base,
-                              &req.base_,
-                              &req_arena) != NK_EOK) {
+        if (nk_transport_recv(&threadArgs->transport->base,
+                              &threadArgs->gpioRequest->base_,
+                              threadArgs->req_arena) != NK_EOK) {
             fprintf(stderr, "nk_transport_recv error\n");
         } else {
             /**
              * Handle received request by calling implementation Mode_impl
              * of the requested Mode interface method.
              */
-            traffic_light_LightsGPIO_entity_dispatch(&entity, &req.base_, &req_arena,
-                                        &res.base_, &res_arena);
+            traffic_light_LightsGPIO_entity_dispatch(threadArgs->entity, &threadArgs->gpioRequest->base_, threadArgs->req_arena,
+                                        &threadArgs->gpioResult->base_, threadArgs->res_arena);
         }
 
         /* Send response. */
-        if (nk_transport_reply(&transport.base,
-                               &res.base_,
-                               &res_arena) != NK_EOK) {
-            fprintf(stderr, "nk_transport_reply error\n");
+        if (nk_transport_reply(&threadArgs->transport->base,
+                               &threadArgs->gpioResult->base_,
+                               threadArgs->res_arena) != NK_EOK) {
+            fprintf(stderr, "[mode] nk_transport_reply error\n");
         }
     }
-    while (true);
+
+    return NULL;
+}
+
+int main(void)
+{
+    ServiceId iid;
+    Handle handle = ServiceLocatorRegister("lights_gpio_connection", NULL, 0, &iid);
+    assert(handle != INVALID_HANDLE);
+
+    NkKosTransport transport;
+    NkKosTransport_Init(&transport, handle, NK_NULL, 0);
+
+    ServiceId iidDiag;
+    Handle handleDiag = ServiceLocatorRegister("diagnostics_connection", NULL, 0, &iidDiag);
+    assert(handleDiag != INVALID_HANDLE);
+
+    NkKosTransport transportDiag;
+    NkKosTransport_Init(&transportDiag, handleDiag, NK_NULL, 0);
+
+    traffic_light_LightsGPIO_entity_req gpioRequest;
+    char gpioReqBuffer[traffic_light_LightsGPIO_entity_req_arena_size];
+    struct nk_arena req_arena = NK_ARENA_INITIALIZER(gpioReqBuffer,
+                                        gpioReqBuffer + sizeof(gpioReqBuffer));
+
+    traffic_light_LightsGPIO_entity_res gpioResult;
+    char res_buffer[traffic_light_LightsGPIO_entity_res_arena_size];
+    struct nk_arena res_arena = NK_ARENA_INITIALIZER(res_buffer,
+                                        res_buffer + sizeof(res_buffer));
+
+    traffic_light_CMode_component component;
+    traffic_light_CMode_component_init(&component, CreateIModeImpl(0x1000000));
+
+    traffic_light_CStatus_component componentSts;
+    traffic_light_CStatus_component_init(&componentSts, CreateIStatusImpl(0x1000000));
+
+    /* Initialize lights gpio entity dispatcher. */
+    traffic_light_LightsGPIO_entity entity;
+    traffic_light_LightsGPIO_entity_init(&entity, &component, &componentSts);
+
+    fprintf(stderr, "Hello I'm LightsGPIO\n");
+
+    ThreadArgs threadArgs1 = {&transport, &entity, &gpioRequest, &req_arena, &res_arena, &gpioResult};
+    ThreadArgs threadArgs2 = {&transportDiag, &entity, &gpioRequest, &req_arena, &res_arena, &gpioResult};
+
+    pthread_t thread1, thread2;
+
+    pthread_create(&thread1, NULL, handle_transport, &threadArgs1);
+    pthread_create(&thread2, NULL, handle_transport, &threadArgs2);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
 
     return EXIT_SUCCESS;
 }
