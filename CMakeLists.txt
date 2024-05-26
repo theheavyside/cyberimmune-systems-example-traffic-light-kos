@@ -19,6 +19,8 @@ include_directories (${klog_INCLUDE})
 find_package (klog_storage REQUIRED)
 include_directories (${klog_storage_INCLUDE})
 
+find_package (ns REQUIRED)
+
 # NK targets
 # IMode / CMode
 nk_build_idl_files (traffic_light_mode_idl_files 

@@ -26,7 +26,8 @@ set (ENTITIES
         LightsGPIO 
         Diagnostics
         ${precompiled_vfsVfsNet}
-        KlogStorageEntity)
+        KlogStorageEntity
+        ${ns_ENTITY})
 
 set_target_properties (${precompiled_vfsVfsNet} PROPERTIES
         EXTRA_ARGS "\
