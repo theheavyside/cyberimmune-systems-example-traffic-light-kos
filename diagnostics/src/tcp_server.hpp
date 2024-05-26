@@ -8,14 +8,15 @@ namespace net = boost::asio;
 namespace sys = boost::system;
 
 //for compatibility with fprintf in *.c files
-#define ENDL "\n";
+#define ENDL "\n"; \
+    std::cout.flush();
 
 class TcpServer
 {
 public:
-    explicit TcpServer(int port) 
+    explicit TcpServer(int port)
         : m_port{port}
-        , m_acceptor{m_ioContext, 
+        , m_acceptor{m_ioContext,
                      net::ip::tcp::endpoint(net::ip::tcp::v4(), m_port)}
     {
         std::cerr << "Server started. Listening on port: " << m_port << ENDL;
@@ -25,7 +26,7 @@ public:
     {
         net::ip::tcp::socket socket{m_ioContext};
         m_acceptor.accept(socket);
-        
+
         std::cerr << "New connection accepted" << ENDL;
         HandleRequest(socket, status);
     }
@@ -35,9 +36,9 @@ private:
         try {
             uint8_t buffer[1024];
             sys::error_code error;
-            
+
             size_t bytesTransferred = socket.read_some(net::buffer(buffer), error);
-            
+
             if (!error) {
                 if (bytesTransferred == 1 && buffer[0] == 0x99) {
                     uint8_t response{status};

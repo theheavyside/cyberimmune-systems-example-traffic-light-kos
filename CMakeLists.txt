@@ -23,54 +23,54 @@ find_package (ns REQUIRED)
 
 # NK targets
 # IMode / CMode
-nk_build_idl_files (traffic_light_mode_idl_files 
-    NK_MODULE "traffic_light" 
+nk_build_idl_files (traffic_light_mode_idl_files
+    NK_MODULE "traffic_light"
     IDL "resources/interfaces/IMode.idl")
 
-nk_build_cdl_files (traffic_light_mode_cdl_files 
-    IDL_TARGET traffic_light_mode_idl_files 
-    NK_MODULE "traffic_light" 
+nk_build_cdl_files (traffic_light_mode_cdl_files
+    IDL_TARGET traffic_light_mode_idl_files
+    NK_MODULE "traffic_light"
     CDL "resources/interfaces/CMode.cdl")
 
 # IStatus / CStatus
-nk_build_idl_files (traffic_light_status_idl_files 
-    NK_MODULE "traffic_light" 
+nk_build_idl_files (traffic_light_status_idl_files
+    NK_MODULE "traffic_light"
     IDL "resources/interfaces/IStatus.idl")
 
-nk_build_cdl_files (traffic_light_status_cdl_files 
-    IDL_TARGET traffic_light_status_idl_files 
-    NK_MODULE "traffic_light" 
+nk_build_cdl_files (traffic_light_status_cdl_files
+    IDL_TARGET traffic_light_status_idl_files
+    NK_MODULE "traffic_light"
     CDL "resources/interfaces/CStatus.cdl")
 
 # ControlSystem
-nk_build_edl_files (traffic_light_control_system_edl_files 
-    NK_MODULE "traffic_light" 
+nk_build_edl_files (traffic_light_control_system_edl_files
+    NK_MODULE "traffic_light"
     EDL "resources/entities/ControlSystem.edl")
 
 # LightsGPIO
-nk_build_edl_files (traffic_light_lights_gpio_edl_files 
+nk_build_edl_files (traffic_light_lights_gpio_edl_files
     CDL_TARGET traffic_light_mode_cdl_files
-    NK_MODULE "traffic_light" 
+    NK_MODULE "traffic_light"
     DEPENDS traffic_light_status_cdl_files
     EDL "resources/entities/LightsGPIO.edl")
 
-nk_build_edl_files (traffic_light_lights_gpio_edl_files 
-    CDL_TARGET traffic_light_status_cdl_files 
-    NK_MODULE "traffic_light" 
+nk_build_edl_files (traffic_light_lights_gpio_edl_files
+    CDL_TARGET traffic_light_status_cdl_files
+    NK_MODULE "traffic_light"
     EDL "resources/entities/LightsGPIO.edl")
-    
+
 # Diagnostics
-nk_build_edl_files (traffic_light_diagnostics_edl_files 
-    NK_MODULE "traffic_light" 
+nk_build_edl_files (traffic_light_diagnostics_edl_files
+    NK_MODULE "traffic_light"
     EDL "resources/entities/Diagnostics.edl")
 
 # KLog
-nk_build_edl_files (klog_edl_files 
-    NK_MODULE "traffic_light" 
+nk_build_edl_files (klog_edl_files
+    NK_MODULE "traffic_light"
     EDL "resources/entities/KlogEntity.edl")
 
-nk_build_edl_files (klog_storage_edl_files 
-    NK_MODULE "traffic_light" 
+nk_build_edl_files (klog_storage_edl_files
+    NK_MODULE "traffic_light"
     EDL "resources/entities/KlogStorageEntity.edl")
 
 # Add a package for working with the virtual file system.

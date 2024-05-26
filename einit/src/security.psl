@@ -119,9 +119,9 @@ request src=traffic_light.ControlSystem dst=kl.core.Core {
     grant ()
 }
 
-request src=traffic_light.ControlSystem 
-    dst=traffic_light.LightsGPIO 
-    endpoint=lightsGpio.mode 
+request src=traffic_light.ControlSystem
+    dst=traffic_light.LightsGPIO
+    endpoint=lightsGpio.mode
     method=FMode {
         /* white list of states */
         assert(bool.any [
@@ -132,7 +132,7 @@ request src=traffic_light.ControlSystem
             message.value == 0x301,
             message.value == 0x401,
             message.value == 0x201,
-            message.value == 0xA0A])        
+            message.value == 0xA0A])
 }
 
 request src=Einit {
@@ -257,4 +257,4 @@ response src=kl.core.NameServer
     grant()
 }
 
-audit default = trace 4
+audit default = trace 0

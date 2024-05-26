@@ -21,9 +21,9 @@ target_link_libraries (KlogEntityHw kssaudit)
 set (INIT_KlogEntity_PATH "KlogEntityQemu")
 
 # Define the ENTITIES variable with a list of entities.
-set (ENTITIES 
-        ControlSystem 
-        LightsGPIO 
+set (ENTITIES
+        ControlSystem
+        LightsGPIO
         Diagnostics
         ${precompiled_vfsVfsNet}
         KlogStorageEntity

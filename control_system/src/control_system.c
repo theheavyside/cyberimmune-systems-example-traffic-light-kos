@@ -8,12 +8,14 @@
 #include <coresrv/sl/sl_api.h>
 
 /* Description of the lights gpio interface used by the `ControlSystem` entity. */
+#include <strict/posix/unistd.h>
 #include <traffic_light/IMode.idl.h>
 
 #include <assert.h>
 
-#define MODES_NUM 11
-
+#define MODES_NUM 8
+#define SWITCH_MODE_PERIOD_S 1
+#define LOG_ID "ControlSys"
 
 /* Control system entity entry point. */
 int main(int argc, const char *argv[])
@@ -23,7 +25,7 @@ int main(int argc, const char *argv[])
 
     NkKosTransport transport;
     struct traffic_light_IMode_proxy proxy;
-    int i;
+
     static const nk_uint32_t tl_modes[MODES_NUM] = {
         traffic_light_IMode_Direction1Red + traffic_light_IMode_Direction2Red,
         traffic_light_IMode_Direction1Red + traffic_light_IMode_Direction1Yellow + traffic_light_IMode_Direction2Red,
@@ -32,10 +34,7 @@ int main(int argc, const char *argv[])
         traffic_light_IMode_Direction1Red + traffic_light_IMode_Direction2Yellow + traffic_light_IMode_Direction2Red,
         traffic_light_IMode_Direction1Red + traffic_light_IMode_Direction2Green,
         traffic_light_IMode_Direction1Red + traffic_light_IMode_Direction2Yellow,
-        traffic_light_IMode_Direction1Yellow + traffic_light_IMode_Direction1Blink + traffic_light_IMode_Direction2Yellow + traffic_light_IMode_Direction2Blink,
-        traffic_light_IMode_Direction1Green + traffic_light_IMode_Direction2Green, // <-- try to forbid this via security policies
-        traffic_light_IMode_Direction1Green + traffic_light_IMode_Direction1Yellow + traffic_light_IMode_Direction2Green,
-        traffic_light_IMode_Direction1Green + traffic_light_IMode_Direction1Yellow + traffic_light_IMode_Direction2Green + traffic_light_IMode_Direction2Yellow
+        traffic_light_IMode_Direction1Yellow + traffic_light_IMode_Direction1Blink + traffic_light_IMode_Direction2Yellow + traffic_light_IMode_Direction2Blink
     };
 
     fprintf(stderr, "Hello I'm ControlSystem\n");
@@ -71,7 +70,8 @@ int main(int argc, const char *argv[])
 
     /* Test loop. */
     req.value = 0;
-    for (i = 0; i < MODES_NUM; i++)
+    int i = 0;
+    while(1)
     {
         req.value = tl_modes[i];
         /**
@@ -81,21 +81,28 @@ int main(int argc, const char *argv[])
          * until a response is received from the lights gpio.
          */
         if (traffic_light_IMode_FMode(&proxy.base, &req, NULL, &res, NULL) == rcOk)
-
         {
             /**
              * Print result value from response
              * (result is the output argument of the Mode method).
              */
-            fprintf(stderr, "request = %0x; result = %0x\n", (int)req.value, (int) res.result);
+            fprintf(stderr, "[%s] request = %0x; result = %0x\n", LOG_ID, (int)req.value, (int) res.result);
             /**
              * Include received result value into value argument
              * to resend to lights gpio in next iteration.
              */
             req.value = res.result;
+
+            sleep(SWITCH_MODE_PERIOD_S);
+
+            i = (i + 1) % MODES_NUM;
         }
         else
-            fprintf(stderr, "Failed to call traffic_light.Mode.Mode()\n");
+        {
+            fprintf(stderr, "[%s] Failed to call traffic_light.Mode.Mode()\n", LOG_ID);
+            return EXIT_FAILURE;
+        }
+
     }
 
     return EXIT_SUCCESS;
